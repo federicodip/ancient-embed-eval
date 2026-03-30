@@ -1,0 +1,71 @@
+corpus: data/chunks/perseus_chunks.jsonl
+queries: data/queries/tellusgraph_queries.jsonl
+embed_field: embed_text
+output_dir: results
+embeddings_dir: embeddings
+
+# encode_mode controls how the model encodes text:
+#   "standard"    — plain model.encode(), with optional query_prefix / passage_prefix
+#   "prompt_name" — model.encode(text, prompt_name="query") for queries, plain for passages
+#   "asymmetric"  — model.encode_query() / model.encode_document() (separate methods)
+
+models:
+  # --- Proven multilingual baselines ---
+
+  - name: bge-m3
+    hf_id: BAAI/bge-m3
+    encode_mode: standard
+    normalize: true
+    batch_size: 64
+
+  - name: multilingual-e5-large
+    hf_id: intfloat/multilingual-e5-large
+    encode_mode: standard
+    normalize: true
+    query_prefix: "query: "
+    passage_prefix: "passage: "
+    batch_size: 64
+
+  - name: gte-multilingual
+    hf_id: Alibaba-NLP/gte-multilingual-base
+    encode_mode: standard
+    normalize: true
+    batch_size: 64
+
+  # --- New generation (small, fast) ---
+
+  - name: qwen3-embed-0.6B
+    hf_id: Qwen/Qwen3-Embedding-0.6B
+    encode_mode: prompt_name
+    normalize: true
+    batch_size: 64
+    trust_remote_code: true
+    torch_dtype: bfloat16
+
+  - name: embedding-gemma-300M
+    hf_id: google/embeddinggemma-300m
+    encode_mode: asymmetric
+    normalize: true
+    batch_size: 64
+
+  # --- New generation (large, top-performing, need 80GB GPU) ---
+
+  - name: qwen3-embed-8B
+    hf_id: Qwen/Qwen3-Embedding-8B
+    encode_mode: prompt_name
+    normalize: true
+    batch_size: 8
+    trust_remote_code: true
+    torch_dtype: bfloat16
+
+  - name: nemotron-embed-8B
+    hf_id: nvidia/llama-embed-nemotron-8b
+    encode_mode: asymmetric
+    normalize: true
+    batch_size: 8
+    trust_remote_code: true
+    torch_dtype: bfloat16
+
+eval:
+  k_values: [1, 5, 10, 20, 50]
+  similarity: cosine

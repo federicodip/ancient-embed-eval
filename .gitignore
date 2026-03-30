@@ -1,0 +1,32 @@
+# Embeddings (large, regenerated on cluster)
+embeddings/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# Environment
+.env
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Results can be committed selectively
+# results/
+
+# Large data files (558MB chunks — too big for GitHub, lives on scratch)
+data/chunks/
+
+# Numpy arrays
+*.npy

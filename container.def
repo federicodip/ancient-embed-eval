@@ -1,0 +1,21 @@
+Bootstrap: docker
+From: pytorch/pytorch:2.4.0-cuda12.4-cudnn9-devel
+
+%files
+  requirements.txt /opt/project/requirements.txt
+
+%post
+  apt-get update && apt-get install -y --no-install-recommends build-essential git && rm -rf /var/lib/apt/lists/*
+
+  # Core Python deps (torch already in base image, pip will skip it)
+  pip install --no-cache-dir -r /opt/project/requirements.txt
+
+  # flash-attn for 8B models — needs devel image for CUDA headers
+  pip install --no-cache-dir flash-attn>=2.6.0 --no-build-isolation
+
+%environment
+  export LC_ALL=C
+  export PYTHONUNBUFFERED=1
+
+%runscript
+  python "$@"
