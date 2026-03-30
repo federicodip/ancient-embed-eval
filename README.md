@@ -111,6 +111,7 @@ apptainer exec /scratch/fdipas/ancient-embed-eval/container.sif python compare.p
 - **MRR** — Mean Reciprocal Rank of first correct hit
 - **NDCG@k** — Normalized Discounted Cumulative Gain
 - **ARI / NMI** — clustering agreement between embeddings and true author/work labels
+- **Within-language retrieval** — given a chunk, can the model find other chunks from the same work? Tests source-language understanding without cross-lingual transfer
 
 ## Project structure
 
@@ -119,9 +120,10 @@ config.yaml           # model definitions, paths, eval parameters
 utils.py              # data loading, author matching, metrics
 embed_corpus.py       # embed chunks → vectors.npy
 eval_retrieval.py     # FAISS search → retrieval metrics
+eval_within_lang.py   # within-language retrieval (chunk → same-work neighbors)
 eval_clustering.py    # k-means → clustering metrics
 compare.py            # aggregate comparison tables + plots
-container.def         # Apptainer definition (CUDA + PyTorch + flash-attn)
+container.def         # Apptainer definition (CUDA + PyTorch)
 jobs/
   build_container.sh  # Slurm: build container
   embed.sh            # Slurm: embed with GPU

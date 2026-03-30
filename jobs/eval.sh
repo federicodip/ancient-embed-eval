@@ -30,11 +30,14 @@ HTTP_PROXY=http://10.129.62.115:3128 \
     apptainer exec /scratch/fdipas/ancient-embed-eval/container.sif \
     python eval_retrieval.py --model "$MODEL" $LANG_FLAG
 
-# Only run clustering on full corpus (language filter doesn't apply)
+# Only run clustering and within-language eval on full corpus
 if [ -z "$LANGUAGE" ]; then
     HF_HOME=/scratch/fdipas/cache/huggingface \
         apptainer exec /scratch/fdipas/ancient-embed-eval/container.sif \
         python eval_clustering.py --model "$MODEL" --sample 10000
+
+    apptainer exec /scratch/fdipas/ancient-embed-eval/container.sif \
+        python eval_within_lang.py --model "$MODEL" --n-queries 1000
 fi
 
 echo "Done: eval $MODEL $LANGUAGE"
