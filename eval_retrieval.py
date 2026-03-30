@@ -71,7 +71,11 @@ def eval_model(model_cfg, config, args):
     query_prefix = model_cfg.get("query_prefix", "")
 
     embeddings_dir = Path(config["embeddings_dir"]) / name
-    results_dir = Path(config["output_dir"]) / name
+    # Language-filtered runs get their own results subdirectory
+    if args.language:
+        results_dir = Path(config["output_dir"]) / name / args.language.lower()
+    else:
+        results_dir = Path(config["output_dir"]) / name
     results_dir.mkdir(parents=True, exist_ok=True)
 
     k_values = config["eval"]["k_values"]
@@ -81,6 +85,14 @@ def eval_model(model_cfg, config, args):
     log.info("Loading embeddings from %s", embeddings_dir)
     vectors, metadata = load_embeddings(embeddings_dir)
     log.info("Loaded %d vectors (dim=%d)", vectors.shape[0], vectors.shape[1])
+
+    # Filter by language if requested (e.g., --language latin)
+    lang_filter = args.language
+    if lang_filter:
+        keep = [i for i, m in enumerate(metadata) if m.get("language", "").lower() == lang_filter.lower()]
+        vectors = vectors[keep]
+        metadata = [metadata[i] for i in keep]
+        log.info("Filtered to %d %s vectors", len(metadata), lang_filter)
 
     # Build FAISS index (flat, cosine = normalized dot product)
     dim = vectors.shape[1]
@@ -101,6 +113,13 @@ def eval_model(model_cfg, config, args):
         a = meta["author"]
         if a not in author_lang:
             author_lang[a] = meta.get("language", "unknown")
+
+    # Filter queries to only those whose author exists in the (possibly filtered) corpus
+    if lang_filter:
+        queries = [q for q in queries if any(
+            authors_match(q["author"], a) for a in author_lang
+        )]
+        log.info("Filtered to %d queries matching %s authors", len(queries), lang_filter)
 
     # Run evaluation
     per_query_results = []
@@ -267,6 +286,7 @@ def main():
     parser.add_argument("--model", required=True, help="Model name or 'all'")
     parser.add_argument("--config", default="config.yaml")
     parser.add_argument("--k", type=int, default=None, help="Override max k value")
+    parser.add_argument("--language", default=None, help="Filter corpus and queries to one language (e.g., 'latin', 'greek')")
     parser.add_argument("--verbose", action="store_true", help="Include all top-k results in details")
     args = parser.parse_args()
 
