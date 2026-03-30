@@ -19,6 +19,6 @@ mkdir -p /scratch/fdipas/ancient-embed-eval
 HTTPS_PROXY=http://10.129.62.115:3128 \
 HTTP_PROXY=http://10.129.62.115:3128 \
 APPTAINER_BINDPATH="" \
-    apptainer build /scratch/fdipas/ancient-embed-eval/container.sif container.def
+    apptainer build --ignore-fakeroot-command /scratch/fdipas/ancient-embed-eval/container.sif container.def
 
 echo "Container built: /scratch/fdipas/ancient-embed-eval/container.sif"
