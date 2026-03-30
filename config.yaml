@@ -30,8 +30,9 @@ models:
     hf_id: Alibaba-NLP/gte-multilingual-base
     encode_mode: standard
     normalize: true
-    batch_size: 64
+    batch_size: 32
     trust_remote_code: true
+    max_seq_length: 512
 
   # --- New generation (small, fast) ---
 
@@ -39,15 +40,18 @@ models:
     hf_id: Qwen/Qwen3-Embedding-0.6B
     encode_mode: prompt_name
     normalize: true
-    batch_size: 16
+    batch_size: 4
     trust_remote_code: true
     torch_dtype: bfloat16
+    max_seq_length: 512
 
-  - name: embedding-gemma-300M
-    hf_id: google/embeddinggemma-300m
-    encode_mode: asymmetric
-    normalize: true
-    batch_size: 64
+  # embedding-gemma-300M removed — gated model, needs HF token + license acceptance
+  # Re-add with HF_TOKEN if needed:
+  # - name: embedding-gemma-300M
+  #   hf_id: google/embeddinggemma-300m
+  #   encode_mode: asymmetric
+  #   normalize: true
+  #   batch_size: 64
 
   # --- New generation (large, top-performing, need 80GB GPU) ---
 

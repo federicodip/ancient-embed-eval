@@ -57,7 +57,14 @@ def load_st_model(model_cfg):
 
     log.info("Loading model %s (%s) with kwargs: %s", model_cfg["name"], hf_id, st_kwargs)
     model = SentenceTransformer(hf_id, **st_kwargs)
-    log.info("Model loaded. Embedding dim: %d", model.get_sentence_embedding_dimension())
+
+    # Cap sequence length to avoid OOM on decoder-based models with long contexts
+    if model_cfg.get("max_seq_length"):
+        model.max_seq_length = model_cfg["max_seq_length"]
+        log.info("Set max_seq_length to %d", model.max_seq_length)
+
+    log.info("Model loaded. Embedding dim: %d, max_seq_length: %d",
+             model.get_sentence_embedding_dimension(), model.max_seq_length)
     return model
 
 
