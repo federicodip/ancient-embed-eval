@@ -26,13 +26,9 @@ models:
     passage_prefix: "passage: "
     batch_size: 64
 
-  - name: gte-multilingual
-    hf_id: Alibaba-NLP/gte-multilingual-base
-    encode_mode: standard
-    normalize: true
-    batch_size: 32
-    trust_remote_code: true
-    max_seq_length: 512
+  # gte-multilingual removed — custom model code (new-impl) broken with
+  # transformers>=5.0 (position_ids buffer corruption, CUDA assert failures).
+  # See https://huggingface.co/Alibaba-NLP/gte-multilingual-base/discussions/30
 
   # --- New generation (small, fast) ---
 

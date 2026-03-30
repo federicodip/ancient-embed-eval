@@ -15,7 +15,6 @@ All open-weights, all multilingual (100+ languages).
 |------|---------------|--------|-----|---------|
 | bge-m3 | BAAI/bge-m3 | 568M | 1024 | MIT |
 | multilingual-e5-large | intfloat/multilingual-e5-large | 560M | 1024 | MIT |
-| gte-multilingual | Alibaba-NLP/gte-multilingual-base | 305M | 768 | Apache 2.0 |
 | qwen3-embed-0.6B | Qwen/Qwen3-Embedding-0.6B | 0.6B | 32-1024 | Apache 2.0 |
 | qwen3-embed-8B | Qwen/Qwen3-Embedding-8B | 8B | 32-7168 | Apache 2.0 |
 | nemotron-embed-8B | nvidia/llama-embed-nemotron-8b | 8B | 4096 | NSCL v1 |
