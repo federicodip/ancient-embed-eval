@@ -40,6 +40,9 @@ def load_st_model(model_cfg):
     if model_cfg.get("torch_dtype") == "bfloat16":
         model_kwargs["torch_dtype"] = "bfloat16"
 
+    if model_cfg.get("attn_implementation"):
+        model_kwargs["attn_implementation"] = model_cfg["attn_implementation"]
+
     if model_cfg.get("trust_remote_code"):
         model_kwargs["trust_remote_code"] = True
         tokenizer_kwargs["trust_remote_code"] = True

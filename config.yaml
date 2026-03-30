@@ -30,42 +30,26 @@ models:
   # transformers>=5.0 (position_ids buffer corruption, CUDA assert failures).
   # See https://huggingface.co/Alibaba-NLP/gte-multilingual-base/discussions/30
 
-  # --- New generation (small, fast) ---
-
-  - name: qwen3-embed-0.6B
-    hf_id: Qwen/Qwen3-Embedding-0.6B
-    encode_mode: prompt_name
-    normalize: true
-    batch_size: 4
-    trust_remote_code: true
-    torch_dtype: bfloat16
-    max_seq_length: 512
-
-  # embedding-gemma-300M removed — gated model, needs HF token + license acceptance
-  # Re-add with HF_TOKEN if needed:
-  # - name: embedding-gemma-300M
-  #   hf_id: google/embeddinggemma-300m
-  #   encode_mode: asymmetric
-  #   normalize: true
-  #   batch_size: 64
-
   # --- New generation (large, top-performing, need 80GB GPU) ---
 
   - name: qwen3-embed-8B
     hf_id: Qwen/Qwen3-Embedding-8B
     encode_mode: prompt_name
     normalize: true
-    batch_size: 8
+    batch_size: 2
     trust_remote_code: true
     torch_dtype: bfloat16
+    max_seq_length: 512
 
   - name: nemotron-embed-8B
     hf_id: nvidia/llama-embed-nemotron-8b
     encode_mode: asymmetric
     normalize: true
-    batch_size: 8
+    batch_size: 2
     trust_remote_code: true
     torch_dtype: bfloat16
+    attn_implementation: eager
+    max_seq_length: 512
 
 eval:
   k_values: [1, 5, 10, 20, 50]
