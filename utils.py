@@ -14,7 +14,7 @@ from pathlib import Path
 AUTHOR_ALIASES = {
     "virgil": ["virgil", "vergilius"],
     "horace": ["horace", "horatius"],
-    "caesar": ["caesar"],
+    "caesar": ["julius caesar"],
     "cicero": ["cicero", "tullius"],
     "ovid": ["ovid", "ovidius"],
     "seneca": ["seneca"],
@@ -93,14 +93,18 @@ def authors_match(query_author, corpus_author):
     key = query_author.strip().lower()
     corpus_lower = corpus_author.strip().lower()
 
-    # Direct substring match (handles most cases)
-    if key in corpus_lower or corpus_lower in key:
-        return True
+    # Guard against empty strings (empty author in corpus matches everything)
+    if not key or not corpus_lower:
+        return False
 
-    # Alias lookup
+    # Alias lookup first (more precise than substring matching)
     aliases = AUTHOR_ALIASES.get(key)
     if aliases:
         return any(alias in corpus_lower for alias in aliases)
+
+    # Fallback: direct substring match
+    if key in corpus_lower or corpus_lower in key:
+        return True
 
     # Fallback: check if any word in the query author appears in corpus author
     return any(word in corpus_lower for word in key.split() if len(word) > 3)
