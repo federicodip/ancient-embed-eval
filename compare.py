@@ -24,10 +24,11 @@ log = logging.getLogger(__name__)
 
 
 def load_model_results(results_dir, model_name):
-    """Load retrieval and clustering metrics for a model. Returns dict or None."""
+    """Load retrieval and clustering metrics for a model, including language-filtered results."""
     model_dir = Path(results_dir) / model_name
     result = {"model": model_name}
 
+    # Full corpus results
     retrieval_path = model_dir / "retrieval_metrics.json"
     if retrieval_path.exists():
         with open(retrieval_path, encoding="utf-8") as f:
@@ -42,12 +43,22 @@ def load_model_results(results_dir, model_name):
     else:
         result["clustering"] = None
 
+    # Language-filtered results
+    for lang in ["latin", "greek"]:
+        lang_path = model_dir / lang / "retrieval_metrics.json"
+        if lang_path.exists():
+            with open(lang_path, encoding="utf-8") as f:
+                result[f"retrieval_{lang}"] = json.load(f)
+        else:
+            result[f"retrieval_{lang}"] = None
+
     return result
 
 
 def print_comparison_table(all_results, k_values):
-    """Print a formatted comparison table to stdout."""
-    # Header
+    """Print formatted comparison tables to stdout."""
+
+    # --- Main table: full corpus ---
     header_parts = [f"{'Model':<25}", f"{'Dim':>5}"]
     for k in k_values:
         header_parts.append(f"{'R@'+str(k):>7}")
@@ -55,7 +66,7 @@ def print_comparison_table(all_results, k_values):
     header = " ".join(header_parts)
 
     print(f"\n{'='*len(header)}")
-    print("RETRIEVAL COMPARISON (Author Recall)")
+    print("FULL CORPUS — Author Recall")
     print(f"{'='*len(header)}")
     print(header)
     print("-" * len(header))
@@ -82,28 +93,72 @@ def print_comparison_table(all_results, k_values):
 
         print(" ".join(parts))
 
-    # Per-language breakdown
-    print(f"\n{'='*80}")
-    print("PER-LANGUAGE BREAKDOWN (Author Recall@10, MRR)")
-    print(f"{'='*80}")
+    # --- Language-filtered tables ---
+    for lang in ["latin", "greek"]:
+        key = f"retrieval_{lang}"
+        has_data = any(r.get(key) for r in all_results)
+        if not has_data:
+            continue
 
-    languages = set()
-    for r in all_results:
-        if r.get("retrieval") and "by_language" in r["retrieval"]:
-            languages.update(r["retrieval"]["by_language"].keys())
+        header_parts = [f"{'Model':<25}", f"{'n':>5}"]
+        for k in k_values:
+            header_parts.append(f"{'R@'+str(k):>7}")
+        header_parts.append(f"{'MRR':>7}")
+        header = " ".join(header_parts)
 
-    for lang in sorted(languages):
-        print(f"\n  [{lang.upper()}]")
-        print(f"  {'Model':<25} {'n':>5} {'R@10':>7} {'MRR':>7}")
-        print(f"  {'-'*47}")
+        print(f"\n{'='*len(header)}")
+        print(f"{lang.upper()}-ONLY CORPUS — Author Recall")
+        print(f"{'='*len(header)}")
+        print(header)
+        print("-" * len(header))
+
         for r in all_results:
-            ret = r.get("retrieval")
-            if not ret or lang not in ret.get("by_language", {}):
+            ret = r.get(key)
+            if not ret:
                 continue
-            lm = ret["by_language"][lang]
-            print(f"  {r['model']:<25} {lm['n']:>5} "
-                  f"{lm.get('author_recall_at_10', 0):>7.3f} "
-                  f"{lm.get('author_mrr', 0):>7.3f}")
+            parts = [f"{r['model']:<25}"]
+            parts.append(f"{ret['num_queries']:>5}")
+            for k in k_values:
+                val = ret["metrics"].get(f"author_recall_at_{k}", 0)
+                parts.append(f"{val:>7.3f}")
+            parts.append(f"{ret['metrics'].get('author_mrr', 0):>7.3f}")
+            print(" ".join(parts))
+
+    # --- Combined language comparison (compact) ---
+    print(f"\n{'='*80}")
+    print("LANGUAGE COMPARISON — Author Recall@10 / MRR")
+    print(f"{'='*80}")
+    print(f"  {'Model':<25} {'Full':>12} {'Latin-only':>12} {'Greek-only':>12}")
+    print(f"  {'-'*63}")
+
+    for r in all_results:
+        parts = [f"  {r['model']:<25}"]
+        # Full
+        ret = r.get("retrieval")
+        if ret:
+            r10 = ret["metrics"].get("author_recall_at_10", 0)
+            mrr = ret["metrics"].get("author_mrr", 0)
+            parts.append(f"{r10:.3f}/{mrr:.3f}")
+        else:
+            parts.append(f"{'—':>12}")
+        # Latin
+        ret_l = r.get("retrieval_latin")
+        if ret_l:
+            r10 = ret_l["metrics"].get("author_recall_at_10", 0)
+            mrr = ret_l["metrics"].get("author_mrr", 0)
+            parts.append(f"{r10:.3f}/{mrr:.3f}")
+        else:
+            parts.append(f"{'—':>12}")
+        # Greek
+        ret_g = r.get("retrieval_greek")
+        if ret_g:
+            r10 = ret_g["metrics"].get("author_recall_at_10", 0)
+            mrr = ret_g["metrics"].get("author_mrr", 0)
+            parts.append(f"{r10:.3f}/{mrr:.3f}")
+        else:
+            parts.append(f"{'—':>12}")
+
+        print(" ".join(parts))
 
     print()
 
@@ -114,6 +169,8 @@ def save_csv(all_results, k_values, output_path):
     for k in k_values:
         fieldnames.append(f"author_recall_at_{k}")
     fieldnames.extend(["author_mrr", "work_mrr", "author_ari", "author_nmi"])
+    for lang in ["latin", "greek"]:
+        fieldnames.extend([f"{lang}_recall_at_10", f"{lang}_mrr"])
 
     with open(output_path, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
@@ -135,6 +192,12 @@ def save_csv(all_results, k_values, output_path):
                 row["author_ari"] = clust["author_clustering"]["ari"]
                 row["author_nmi"] = clust["author_clustering"]["nmi"]
 
+            for lang in ["latin", "greek"]:
+                ret_lang = r.get(f"retrieval_{lang}")
+                if ret_lang:
+                    row[f"{lang}_recall_at_10"] = ret_lang["metrics"].get("author_recall_at_10", "")
+                    row[f"{lang}_mrr"] = ret_lang["metrics"].get("author_mrr", "")
+
             writer.writerow(row)
 
     log.info("Saved CSV to %s", output_path)
@@ -142,6 +205,8 @@ def save_csv(all_results, k_values, output_path):
 
 def generate_plots(all_results, k_values, output_dir):
     """Generate comparison bar charts."""
+    import matplotlib
+    matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
     output_dir = Path(output_dir)
@@ -150,7 +215,7 @@ def generate_plots(all_results, k_values, output_dir):
     models = [r["model"] for r in all_results]
     x = range(len(models))
 
-    # Recall@k bar chart
+    # --- Plot 1: Recall@k grouped bar chart ---
     fig, ax = plt.subplots(figsize=(12, 6))
     width = 0.8 / len(k_values)
     for i, k in enumerate(k_values):
@@ -162,46 +227,68 @@ def generate_plots(all_results, k_values, output_dir):
         ax.bar([xi + offset for xi in x], vals, width, label=f"Recall@{k}")
 
     ax.set_ylabel("Author Recall")
-    ax.set_title("Embedding Model Comparison — Author Recall@k")
+    ax.set_title("Embedding Model Comparison — Author Recall@k (Full Corpus)")
     ax.set_xticks(list(x))
     ax.set_xticklabels(models, rotation=30, ha="right")
     ax.legend()
     ax.set_ylim(0, 1)
     fig.tight_layout()
     fig.savefig(output_dir / "recall_comparison.png", dpi=150)
-    log.info("Saved recall plot to %s", output_dir / "recall_comparison.png")
+    log.info("Saved %s", output_dir / "recall_comparison.png")
     plt.close()
 
-    # Per-language comparison (Recall@10)
-    languages = set()
-    for r in all_results:
-        if r.get("retrieval") and "by_language" in r["retrieval"]:
-            languages.update(r["retrieval"]["by_language"].keys())
+    # --- Plot 2: Language comparison (Recall@10, three groups) ---
+    fig, ax = plt.subplots(figsize=(12, 6))
+    width = 0.25
+    colors = {"Full corpus": "#4472C4", "Latin-only": "#ED7D31", "Greek-only": "#70AD47"}
 
-    if languages:
-        fig, ax = plt.subplots(figsize=(10, 6))
-        width = 0.8 / len(languages)
-        for i, lang in enumerate(sorted(languages)):
-            vals = []
-            for r in all_results:
-                ret = r.get("retrieval")
-                if ret and lang in ret.get("by_language", {}):
-                    vals.append(ret["by_language"][lang].get("author_recall_at_10", 0))
-                else:
-                    vals.append(0)
-            offset = (i - len(languages) / 2 + 0.5) * width
-            ax.bar([xi + offset for xi in x], vals, width, label=lang.capitalize())
+    for i, (label, key) in enumerate([
+        ("Full corpus", "retrieval"),
+        ("Latin-only", "retrieval_latin"),
+        ("Greek-only", "retrieval_greek"),
+    ]):
+        vals = []
+        for r in all_results:
+            ret = r.get(key)
+            vals.append(ret["metrics"].get("author_recall_at_10", 0) if ret else 0)
+        offset = (i - 1) * width
+        ax.bar([xi + offset for xi in x], vals, width, label=label, color=colors[label])
 
-        ax.set_ylabel("Author Recall@10")
-        ax.set_title("Embedding Model Comparison — Author Recall@10 by Language")
-        ax.set_xticks(list(x))
-        ax.set_xticklabels(models, rotation=30, ha="right")
-        ax.legend()
-        ax.set_ylim(0, 1)
-        fig.tight_layout()
-        fig.savefig(output_dir / "recall_by_language.png", dpi=150)
-        log.info("Saved language plot to %s", output_dir / "recall_by_language.png")
-        plt.close()
+    ax.set_ylabel("Author Recall@10")
+    ax.set_title("Author Recall@10 — Full Corpus vs Language-Filtered")
+    ax.set_xticks(list(x))
+    ax.set_xticklabels(models, rotation=30, ha="right")
+    ax.legend()
+    ax.set_ylim(0, 1)
+    fig.tight_layout()
+    fig.savefig(output_dir / "recall_by_language.png", dpi=150)
+    log.info("Saved %s", output_dir / "recall_by_language.png")
+    plt.close()
+
+    # --- Plot 3: MRR comparison ---
+    fig, ax = plt.subplots(figsize=(12, 6))
+    for i, (label, key) in enumerate([
+        ("Full corpus", "retrieval"),
+        ("Latin-only", "retrieval_latin"),
+        ("Greek-only", "retrieval_greek"),
+    ]):
+        vals = []
+        for r in all_results:
+            ret = r.get(key)
+            vals.append(ret["metrics"].get("author_mrr", 0) if ret else 0)
+        offset = (i - 1) * width
+        ax.bar([xi + offset for xi in x], vals, width, label=label, color=colors[label])
+
+    ax.set_ylabel("Author MRR")
+    ax.set_title("Author MRR — Full Corpus vs Language-Filtered")
+    ax.set_xticks(list(x))
+    ax.set_xticklabels(models, rotation=30, ha="right")
+    ax.legend()
+    ax.set_ylim(0, 1)
+    fig.tight_layout()
+    fig.savefig(output_dir / "mrr_by_language.png", dpi=150)
+    log.info("Saved %s", output_dir / "mrr_by_language.png")
+    plt.close()
 
 
 def main():
