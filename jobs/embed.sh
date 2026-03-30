@@ -5,8 +5,10 @@
 #SBATCH --gpus=1
 #SBATCH --constraint="GPUMEM80GB|GPUMEM96GB|GPUMEM140GB"
 #SBATCH --partition=lowprio
+#SBATCH --chdir=/home/fdipas/ancient-embed-eval
 #SBATCH --output=logs/embed-%j.out
 #SBATCH --error=logs/embed-%j.err
+set -e
 
 # Embed corpus chunks with a model.
 # Usage: sbatch jobs/embed.sh bge-m3
@@ -15,8 +17,6 @@
 MODEL=${1:?Usage: sbatch jobs/embed.sh <model-name|all>}
 
 module load apptainer
-
-cd ~/ancient-embed-eval
 
 HF_HOME=/scratch/fdipas/cache/huggingface \
 HTTPS_PROXY=http://10.129.62.115:3128 \

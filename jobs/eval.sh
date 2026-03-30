@@ -3,8 +3,10 @@
 #SBATCH --mem=32G
 #SBATCH --cpus-per-task=4
 #SBATCH --partition=lowprio
+#SBATCH --chdir=/home/fdipas/ancient-embed-eval
 #SBATCH --output=logs/eval-%j.out
 #SBATCH --error=logs/eval-%j.err
+set -e
 
 # Run retrieval + clustering eval for a model (CPU only, no GPU needed).
 # Usage: sbatch jobs/eval.sh bge-m3
@@ -13,8 +15,6 @@
 MODEL=${1:?Usage: sbatch jobs/eval.sh <model-name|all>}
 
 module load apptainer
-
-cd ~/ancient-embed-eval
 
 HF_HOME=/scratch/fdipas/cache/huggingface \
 HTTPS_PROXY=http://10.129.62.115:3128 \
