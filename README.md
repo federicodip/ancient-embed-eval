@@ -41,6 +41,17 @@ python eval_retrieval.py --model bge-m3
 python compare.py
 ```
 
+### Language-filtered evaluation
+
+Evaluate on a single language (Latin or Greek) — filters both the corpus index and the queries:
+
+```bash
+python eval_retrieval.py --model bge-m3 --language latin    # ~84k Latin chunks only
+python eval_retrieval.py --model bge-m3 --language greek    # ~95k Greek chunks only
+```
+
+Results go to `results/{model}/latin/` and `results/{model}/greek/` respectively.
+
 ## Cluster deployment (UZH ScienceCluster)
 
 ### One-time setup
