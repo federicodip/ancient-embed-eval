@@ -1,5 +1,5 @@
 Bootstrap: docker
-From: pytorch/pytorch:2.4.0-cuda12.4-cudnn9-devel
+From: pytorch/pytorch:2.6.0-cuda12.4-cudnn9-runtime
 
 %files
   requirements.txt /opt/project/requirements.txt
@@ -10,8 +10,9 @@ From: pytorch/pytorch:2.4.0-cuda12.4-cudnn9-devel
   # Core Python deps (torch already in base image, pip will skip it)
   pip install --no-cache-dir -r /opt/project/requirements.txt
 
-  # flash-attn for 8B models — needs devel image for CUDA headers
-  pip install --no-cache-dir flash-attn>=2.6.0 --no-build-isolation
+  # flash-attn skipped: runtime image lacks CUDA headers for compilation,
+  # and the .so has mmap issues in SIF containers. 8B models fall back to
+  # eager attention (slower but functional).
 
 %environment
   export LC_ALL=C
