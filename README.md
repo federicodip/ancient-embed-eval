@@ -9,25 +9,60 @@ Benchmarks embedding models on Ancient Greek and Latin text retrieval. Measures 
 
 ## Models tested
 
-All open-weights, all multilingual (100+ languages).
+All open-weights, all multilingual.
 
 | Name | HuggingFace ID | Params | Dim | License |
 |------|---------------|--------|-----|---------|
 | bge-m3 | BAAI/bge-m3 | 568M | 1024 | MIT |
 | multilingual-e5-large | intfloat/multilingual-e5-large | 560M | 1024 | MIT |
-| qwen3-embed-0.6B | Qwen/Qwen3-Embedding-0.6B | 0.6B | 32-1024 | Apache 2.0 |
-| qwen3-embed-8B | Qwen/Qwen3-Embedding-8B | 8B | 32-7168 | Apache 2.0 |
+| qwen3-embed-8B | Qwen/Qwen3-Embedding-8B | 8B | 4096 | Apache 2.0 |
 | nemotron-embed-8B | nvidia/llama-embed-nemotron-8b | 8B | 4096 | NSCL v1 |
 
-The 8B models need 80GB+ GPU memory. The smaller models run on any GPU (or CPU for eval only).
+## Results
+
+### Cross-lingual retrieval (English queries → Ancient Greek/Latin passages)
+
+| Model | R@1 | R@5 | R@10 | R@50 | MRR |
+|-------|-----|-----|------|------|-----|
+| **qwen3-embed-8B** | **0.345** | **0.655** | **0.766** | **0.977** | **0.499** |
+| bge-m3 | 0.170 | 0.363 | 0.462 | 0.731 | 0.265 |
+| nemotron-embed-8B | 0.152 | 0.304 | 0.386 | 0.684 | 0.228 |
+| multilingual-e5-large | 0.117 | 0.269 | 0.363 | 0.719 | 0.200 |
+
+### Per-language breakdown (Author Recall@10 / MRR)
+
+| Model | Full corpus | Latin-only | Greek-only |
+|-------|:-----------:|:----------:|:----------:|
+| **qwen3-embed-8B** | **0.766 / 0.499** | **0.857 / 0.673** | 0.804 / 0.475 |
+| nemotron-embed-8B | 0.386 / 0.228 | 0.667 / 0.395 | **0.804 / 0.550** |
+| bge-m3 | 0.462 / 0.265 | 0.778 / 0.570 | 0.455 / 0.219 |
+| multilingual-e5-large | 0.363 / 0.200 | 0.682 / 0.431 | 0.420 / 0.180 |
+
+### Within-language retrieval (chunk → same-work neighbors, R@10 / MRR)
+
+| Model | Greek | Latin |
+|-------|-------|-------|
+| **bge-m3** | **0.888 / 0.754** | 0.891 / 0.701 |
+| **multilingual-e5-large** | 0.832 / 0.645 | **0.897 / 0.708** |
+| qwen3-embed-8B | 0.815 / 0.620 | 0.850 / 0.647 |
+| nemotron-embed-8B | 0.794 / 0.587 | 0.803 / 0.572 |
+
+### Key findings
+
+1. **Qwen3-8B dominates cross-lingual retrieval** — nearly double the Recall@10 of baselines (77% vs 46%)
+2. **Latin is easier than Greek** for all models, but Qwen3-8B closes the gap most effectively
+3. **Nemotron-8B wins on Greek** when evaluated on Greek-only corpus (highest MRR 0.55), despite underperforming on mixed corpus
+4. **Smaller models win within-language** — BGE-M3 produces tighter same-work clusters than 8B models, suggesting encoder-only architectures better capture source-language similarity
+5. **Model choice depends on use case**: cross-lingual RAG → Qwen3-8B; same-language clustering/similarity → BGE-M3
 
 ## Pipeline
 
 ```
-embed_corpus.py   →  embeddings/{model}/vectors.npy     (GPU, slow)
-eval_retrieval.py →  results/{model}/retrieval_metrics.json   (CPU, fast)
-eval_clustering.py → results/{model}/clustering_metrics.json  (CPU, moderate)
-compare.py        →  comparison table + plots                 (CPU, instant)
+embed_corpus.py    →  embeddings/{model}/vectors.npy          (GPU, ~30-60 min per model)
+eval_retrieval.py  →  results/{model}/retrieval_metrics.json   (GPU, ~2 min per model)
+eval_within_lang.py → results/{model}/within_lang_metrics.json (CPU, ~2 min per model)
+eval_clustering.py →  results/{model}/clustering_metrics.json  (CPU, ~2 min per model)
+compare.py         →  comparison tables, CSV, and plots        (CPU, instant)
 ```
 
 ## Quick start (local, small sample)
@@ -68,40 +103,35 @@ ln -s /scratch/fdipas/ancient-embed-eval/embeddings ~/ancient-embed-eval/embeddi
 # Copy data to scratch
 scp -r data/ fdipas@cluster.s3it.uzh.ch:/scratch/fdipas/ancient-embed-eval/data/
 
-# Build container (includes flash-attn for 8B models)
+# Build container
 sbatch jobs/build_container.sh
 ```
 
 ### Run embeddings
 
 ```bash
-# Smaller models (~1-2 hours each on GPU)
+# Smaller models (~20-30 min each on GPU)
 sbatch jobs/embed.sh bge-m3
 sbatch jobs/embed.sh multilingual-e5-large
-sbatch jobs/embed.sh qwen3-embed-0.6B
 
-# 8B models (~3-4 hours each, need 80GB GPU)
+# 8B models (~1 hour each, need 80GB GPU)
 sbatch jobs/embed.sh qwen3-embed-8B
 sbatch jobs/embed.sh nemotron-embed-8B
-
-# Or all models sequentially
-sbatch jobs/embed.sh all
 ```
 
 ### Run evaluation
 
 ```bash
-sbatch jobs/eval.sh bge-m3
-# or after all embeddings are done:
-sbatch jobs/eval.sh all
+sbatch jobs/eval.sh all              # full corpus + clustering + within-language
+sbatch jobs/eval.sh all latin        # Latin-only
+sbatch jobs/eval.sh all greek        # Greek-only
 ```
 
 ### View results
 
 ```bash
 module load apptainer
-apptainer exec /scratch/fdipas/ancient-embed-eval/container.sif python compare.py
-apptainer exec /scratch/fdipas/ancient-embed-eval/container.sif python compare.py --plot
+apptainer exec --nv /scratch/fdipas/ancient-embed-eval/container.sif python compare.py --plot --output results/comparison.csv
 ```
 
 ## Metrics
@@ -116,21 +146,21 @@ apptainer exec /scratch/fdipas/ancient-embed-eval/container.sif python compare.p
 ## Project structure
 
 ```
-config.yaml           # model definitions, paths, eval parameters
-utils.py              # data loading, author matching, metrics
-embed_corpus.py       # embed chunks → vectors.npy
-eval_retrieval.py     # FAISS search → retrieval metrics
-eval_within_lang.py   # within-language retrieval (chunk → same-work neighbors)
-eval_clustering.py    # k-means → clustering metrics
-compare.py            # aggregate comparison tables + plots
-container.def         # Apptainer definition (CUDA + PyTorch)
+config.yaml            # model definitions, paths, eval parameters
+utils.py               # data loading, author matching, metrics
+embed_corpus.py        # embed chunks → vectors.npy
+eval_retrieval.py      # FAISS search → retrieval metrics
+eval_within_lang.py    # within-language retrieval (chunk → same-work neighbors)
+eval_clustering.py     # k-means → clustering metrics
+compare.py             # aggregate comparison tables + plots
+container.def          # Apptainer definition (CUDA + PyTorch)
 jobs/
-  build_container.sh  # Slurm: build container
-  embed.sh            # Slurm: embed with GPU
-  eval.sh             # Slurm: run eval (CPU)
+  build_container.sh   # Slurm: build container
+  embed.sh             # Slurm: embed with GPU
+  eval.sh              # Slurm: run eval (GPU)
 data/
-  chunks/             # corpus JSONL
-  queries/            # query set JSONL
-embeddings/           # saved vectors (gitignored)
-results/              # output metrics and plots
+  chunks/              # corpus JSONL (gitignored, 558MB)
+  queries/             # query set JSONL
+embeddings/            # saved vectors (gitignored)
+results/               # output metrics and plots
 ```
