@@ -30,6 +30,14 @@ models:
   # transformers>=5.0 (position_ids buffer corruption, CUDA assert failures).
   # See https://huggingface.co/Alibaba-NLP/gte-multilingual-base/discussions/30
 
+  # --- Domain-specific (Classical Philology) ---
+
+  - name: sphilberta
+    hf_id: bowphs/SPhilBerta
+    encode_mode: standard
+    normalize: true
+    batch_size: 128
+
   # --- New generation (large, top-performing, need 80GB GPU) ---
 
   - name: qwen3-embed-8B
